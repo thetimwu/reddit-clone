@@ -10,10 +10,9 @@ export default {
   },
   entities: [Post],
   dbName: "lireddit",
-  host: "127.0.0.1",
-  user: "postgres",
+  user: "root",
   password: "root",
-  port: 5432,
-  type: "postgresql",
+  port: 3306,
+  type: "mysql",
   debug: !__prod__,
 } as Parameters<typeof MikroORM.init>[0];
