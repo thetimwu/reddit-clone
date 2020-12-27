@@ -11,6 +11,10 @@ import {
   Resolver,
 } from "type-graphql";
 import argon2 from "argon2";
+import { COOKIE_NAME } from "../constants";
+//import { EntityManager } from "@mikro-orm/mysql";
+//EntityManager querybuild to write sql in case of orm error
+//eg. [user] = await(em as EntityManager).createQueryBuilder(User).getKnexQuery().insert({username...}).returning("*")
 
 //another way to add arguments
 @InputType()
@@ -86,6 +90,8 @@ export class UserResolver {
     try {
       await em.persistAndFlush(user);
     } catch (error) {
+      //
+      //error.detail.include("already exists")
       if ((error.code = "23505")) {
         return {
           errors: [
@@ -133,5 +139,20 @@ export class UserResolver {
         user,
       };
     }
+  }
+
+  @Mutation(() => Boolean)
+  async logout(@Ctx() { req, res }: MyContext): Promise<Boolean> {
+    return new Promise((resolve) => {
+      req.session.destroy((err) => {
+        res.clearCookie(COOKIE_NAME);
+        if (err) {
+          console.log(err);
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
+    });
   }
 }
