@@ -21,6 +21,10 @@ export class User {
   username!: string;
 
   @Field() //infer type
+  @Property({ type: "text", unique: true })
+  email!: string;
+
+  @Field() //infer type
   @Property({ type: "text" })
   password!: string;
 }
