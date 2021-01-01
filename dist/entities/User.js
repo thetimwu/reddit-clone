@@ -9,34 +9,44 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Post = void 0;
+exports.User = void 0;
 const typeorm_1 = require("typeorm");
 const type_graphql_1 = require("type-graphql");
-let Post = class Post extends typeorm_1.BaseEntity {
+let User = class User extends typeorm_1.BaseEntity {
 };
 __decorate([
     type_graphql_1.Field(() => type_graphql_1.Int),
     typeorm_1.PrimaryGeneratedColumn(),
     __metadata("design:type", Number)
-], Post.prototype, "id", void 0);
+], User.prototype, "id", void 0);
 __decorate([
     type_graphql_1.Field(() => String),
     typeorm_1.CreateDateColumn(),
     __metadata("design:type", Date)
-], Post.prototype, "createdAt", void 0);
+], User.prototype, "createdAt", void 0);
 __decorate([
     type_graphql_1.Field(() => String),
     typeorm_1.UpdateDateColumn(),
     __metadata("design:type", Date)
-], Post.prototype, "updatedAt", void 0);
+], User.prototype, "updatedAt", void 0);
+__decorate([
+    type_graphql_1.Field(),
+    typeorm_1.Column({ unique: true }),
+    __metadata("design:type", String)
+], User.prototype, "username", void 0);
+__decorate([
+    type_graphql_1.Field(),
+    typeorm_1.Column({ unique: true }),
+    __metadata("design:type", String)
+], User.prototype, "email", void 0);
 __decorate([
     type_graphql_1.Field(),
     typeorm_1.Column({ type: "text" }),
     __metadata("design:type", String)
-], Post.prototype, "title", void 0);
-Post = __decorate([
+], User.prototype, "password", void 0);
+User = __decorate([
     type_graphql_1.ObjectType(),
     typeorm_1.Entity()
-], Post);
-exports.Post = Post;
-//# sourceMappingURL=Post.js.map
+], User);
+exports.User = User;
+//# sourceMappingURL=User.js.map

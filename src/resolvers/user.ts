@@ -15,6 +15,7 @@ import { UsernamePasswordInput } from "./UsernamePasswordInput";
 import { validateRegister } from "./utils/validateRegister";
 import { v4 } from "uuid";
 import { sendEmail } from "./utils/sendEmail";
+import { getConnection, getManager } from "typeorm";
 
 @ObjectType()
 class FieldError {
@@ -37,19 +38,19 @@ class UserResponse {
 @Resolver()
 export class UserResolver {
   @Query(() => User, { nullable: true })
-  async me(@Ctx() { em, req }: MyContext) {
+  me(@Ctx() { req }: MyContext) {
     if (!req.session.userId) {
+      //you are not logged in
       return null;
     }
 
-    const user = await em.findOne(User, { id: req.session.userId });
-    return user;
+    return User.findOne(req.session.userId);
   }
 
   @Mutation(() => UserResponse)
   async register(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput, //could use auto infer eg. @Arg("options")
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const errors = validateRegister(options);
 
@@ -58,15 +59,28 @@ export class UserResolver {
     }
 
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
-      username: options.username,
-      password: hashedPassword,
-      email: options.email,
-    });
+
+    let user; //:{id:number, createdAt:string, updatedAt:string};
     try {
-      await em.persistAndFlush(user);
+      // User.create({}).save()   //this is equivalent to below
+      const results = await getConnection()
+        .createQueryBuilder()
+        .insert()
+        .into(User)
+        .values({
+          username: options.username,
+          password: hashedPassword,
+          email: options.email,
+        })
+        .execute();
+      // .returning("*") // only support by mssql server or PostgreSQL
+      //user = results.raw[0]; // not working in mySql
+
+      //result missing a few attribute from MySql db, so mamually find the user then return it
+      const entityManager = getManager();
+      user = await entityManager.findOne(User, results.identifiers[0].id);
     } catch (error) {
-      //
+      console.log(error);
       //error.detail.include("already exists")
       if ((error.code = "23505")) {
         return {
@@ -81,7 +95,7 @@ export class UserResolver {
     }
 
     //store user id session, this will set a cookie on the user, keep them logged in
-    req.session.userId = user.id;
+    req.session.userId = user?.id;
 
     return { user };
   }
@@ -90,13 +104,12 @@ export class UserResolver {
   async login(
     @Arg("usernameOrEmail", () => String) usernameOrEmail: string,
     @Arg("password", () => String) password: string,
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(
-      User,
+    const user = await User.findOne(
       usernameOrEmail.includes("@")
-        ? { email: usernameOrEmail }
-        : { username: usernameOrEmail }
+        ? { where: { email: usernameOrEmail } }
+        : { where: { username: usernameOrEmail } }
     );
     if (!user) {
       return {
@@ -129,7 +142,7 @@ export class UserResolver {
   async changePassword(
     @Arg("token", () => String) token: string,
     @Arg("newPassword", () => String) newPassword: string,
-    @Ctx() { em, req, redisClient }: MyContext
+    @Ctx() { req, redisClient }: MyContext
   ): Promise<UserResponse> {
     if (newPassword.length < 3) {
       return {
@@ -156,7 +169,8 @@ export class UserResolver {
       };
     }
 
-    const user = await em.findOne(User, { id: parseInt(userId) });
+    const userIdNum = parseInt(userId);
+    const user = await User.findOne(userIdNum);
 
     if (!user) {
       return {
@@ -169,9 +183,11 @@ export class UserResolver {
       };
     }
 
-    user.password = await argon2.hash(newPassword);
+    await User.update(
+      { id: userIdNum },
+      { password: await argon2.hash(newPassword) }
+    );
 
-    await em.persistAndFlush(user);
     await redisClient.del(key);
     //login user after change password
     req.session.userId = user.id;
@@ -182,9 +198,9 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async forgetPassword(
     @Arg("email", () => String) email: string,
-    @Ctx() { em, redisClient }: MyContext
+    @Ctx() { redisClient }: MyContext
   ): Promise<Boolean> {
-    const user = await em.findOne(User, { email });
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       //the email not in the db, do nothing
