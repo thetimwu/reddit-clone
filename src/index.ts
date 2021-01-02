@@ -22,9 +22,11 @@ const main = async () => {
     username: "root",
     password: "root",
     logging: true,
-    synchronize: true, //automatic run migration
+    synchronize: true, //automatic run migration if true
     entities: [Post, User],
   });
+
+  // await Post.delete({}); //delete all posts
 
   const app = express();
 
