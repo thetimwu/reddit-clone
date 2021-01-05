@@ -14,17 +14,21 @@ import { MyContext } from "./types";
 import { createConnection } from "typeorm";
 import { User } from "./entities/User";
 import { Post } from "./entities/Post";
+import path from "path";
 
 const main = async () => {
-  await createConnection({
+  const conn = await createConnection({
     type: "mysql",
     database: "lireddit2",
     username: "root",
     password: "root",
     logging: true,
     synchronize: true, //automatic run migration if true
+    migrations: [path.join(__dirname, "./migrations/*")],
     entities: [Post, User],
   });
+
+  await conn.runMigrations();
 
   // await Post.delete({}); //delete all posts
 
