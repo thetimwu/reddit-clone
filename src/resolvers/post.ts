@@ -49,8 +49,9 @@ export class PostResolver {
     const realLimitPlusOne = realLimit + 1; //+1 to construct hasMore logic
     const qb = getConnection()
       .getRepository(Post)
-      .createQueryBuilder("p")
-      .orderBy("createdAt", "DESC")
+      .createQueryBuilder("post")
+      .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id")
+      .orderBy("post.createdAt", "DESC")
       .take(realLimitPlusOne);
     if (cursor) {
       qb.where("createdAt < :cursor", { cursor: new Date(parseInt(cursor)) });
