@@ -16,6 +16,7 @@ import {
 } from "type-graphql";
 import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
+import { Updoot } from "../entities/Updoot";
 
 @InputType()
 class PostInput {
@@ -103,6 +104,31 @@ export class PostResolver {
     } catch (error) {
       return false;
     }
+    return true;
+  }
+
+  @Mutation(() => Boolean)
+  async vote(
+    @Arg("postId", () => Int) postId: number,
+    @Arg("value", () => Int) value: number,
+    @Ctx() { req }: MyContext
+  ) {
+    const isUpdoot = value !== -1;
+    const realValue = isUpdoot ? 1 : -1;
+    const { userId } = req.session;
+    await Updoot.insert({
+      value: realValue,
+      userId,
+      postId,
+    });
+
+    const statValue = realValue === 1 ? "+ 1" : "- 1";
+    await getConnection()
+      .createQueryBuilder()
+      .update(Post)
+      .set({ points: () => `points ${statValue}` })
+      .where("id = :id", { id: postId })
+      .execute();
     return true;
   }
 }
