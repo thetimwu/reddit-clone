@@ -55,7 +55,9 @@ export class PostResolver {
       .orderBy("post.createdAt", "DESC")
       .take(realLimitPlusOne);
     if (cursor) {
-      qb.where("createdAt < :cursor", { cursor: new Date(parseInt(cursor)) });
+      qb.where("post.createdAt < :cursor", {
+        cursor: new Date(parseInt(cursor)),
+      });
     }
 
     const posts = await qb.getMany();
@@ -116,19 +118,38 @@ export class PostResolver {
     const isUpdoot = value !== -1;
     const realValue = isUpdoot ? 1 : -1;
     const { userId } = req.session;
-    await Updoot.insert({
-      value: realValue,
-      userId,
-      postId,
-    });
 
-    const statValue = realValue === 1 ? "+ 1" : "- 1";
-    await getConnection()
-      .createQueryBuilder()
-      .update(Post)
-      .set({ points: () => `points ${statValue}` })
-      .where("id = :id", { id: postId })
-      .execute();
+    const updoot = await Updoot.findOne({ where: { userId, postId } });
+
+    //the user has voted on the post before
+    //and they are changing their vote
+    if (updoot && updoot.value !== realValue) {
+      await Updoot.update(
+        {
+          postId,
+          userId,
+        },
+        { value: realValue }
+      );
+
+      const statValue = realValue === 1 ? "+ 2" : "- 2"; //change original value
+      await Post.update(postId, { points: () => `points ${statValue}` });
+    } else if (!updoot) {
+      //has never voted before
+      await Updoot.insert({
+        value: realValue,
+        userId,
+        postId,
+      });
+
+      const statValue = realValue === 1 ? "+ 1" : "- 1";
+      await getConnection()
+        .createQueryBuilder()
+        .update(Post)
+        .set({ points: () => `points ${statValue}` })
+        .where("id = :id", { id: postId })
+        .execute();
+    }
     return true;
   }
 }
