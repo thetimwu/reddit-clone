@@ -44,23 +44,33 @@ export class PostResolver {
   @Query(() => PaginatedPosts)
   async posts(
     @Arg("limit", () => Int) limit: number,
-    @Arg("cursor", () => String, { nullable: true }) cursor: string
+    @Arg("cursor", () => String, { nullable: true }) cursor: string,
+    @Ctx() { req }: MyContext
   ): Promise<PaginatedPosts> {
     const realLimit = Math.min(10, limit);
     const realLimitPlusOne = realLimit + 1; //+1 to construct hasMore logic
-    const qb = getConnection()
+    const qb = await getConnection()
       .getRepository(Post)
-      .createQueryBuilder("post")
+      .createQueryBuilder("post");
+
+    const _qb = qb
       .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id")
+      .leftJoinAndSelect("post.updoots", "updoot", "updoot.postId = post.id")
+      .leftJoinAndMapOne(
+        "post.voteStatus",
+        "post.updoots",
+        "voteStatus",
+        `updoot.userId =  ${req.session.userId} and updoot.postId = post.id`
+      ) //return Updoot for voteStatus instead of updoot.value due to unsolved query issue
       .orderBy("post.createdAt", "DESC")
       .take(realLimitPlusOne);
     if (cursor) {
-      qb.where("post.createdAt < :cursor", {
+      _qb.where("post.createdAt < :cursor", {
         cursor: new Date(parseInt(cursor)),
       });
     }
 
-    const posts = await qb.getMany();
+    const posts = await _qb.getMany();
     return {
       hasMore: posts.length === realLimitPlusOne,
       posts: posts.slice(0, realLimit),

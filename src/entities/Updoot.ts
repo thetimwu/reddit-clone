@@ -6,11 +6,11 @@ import { Post } from "./Post";
 @ObjectType()
 @Entity()
 export class Updoot extends BaseEntity {
-  @Field()
+  @Field(() => Int)
   @Column({ type: "int" })
   value: number;
 
-  @Field(() => Int) //infer type
+  @Field(() => Int)
   @PrimaryColumn({ type: "int" })
   userId: number;
 
