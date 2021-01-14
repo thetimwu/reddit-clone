@@ -118,16 +118,30 @@ export class PostResolver {
   @Mutation(() => Post, { nullable: true })
   async updatePost(
     @Arg("id", () => Int) id: number,
-    @Arg("title", () => String, { nullable: true }) title: string
+    @Arg("title", () => String, { nullable: true }) title: string,
+    @Arg("text", () => String, { nullable: true }) text: string,
+    @Ctx() { req }: MyContext
   ): Promise<Post | null> {
-    const post = await Post.findOne(id);
-    if (!post) {
-      return null;
-    }
-    if (typeof title !== undefined) {
-      await Post.update({ id }, { title });
-    }
-    return post;
+    await getConnection()
+      .createQueryBuilder()
+      .update(Post)
+      .set({ title, text })
+      .where("id = :id and creatorId = :creatorId", {
+        id,
+        creatorId: req.session.userId,
+      })
+      .execute();
+    // origin update
+    // const post = await Post.findOne(id);
+    // if (!post) {
+    //   return null;
+    // }
+    // if (typeof title !== undefined) {
+    //   await Post.update({ id }, { title });
+    // }
+
+    const post = await Post.findOne(id); //returning("*") not working in MySQL, so mannually return post
+    return post!;
   }
 
   @Mutation(() => Boolean)
