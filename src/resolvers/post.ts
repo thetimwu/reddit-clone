@@ -78,8 +78,29 @@ export class PostResolver {
   }
 
   @Query(() => Post, { nullable: true })
-  post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
-    return Post.findOne(id);
+  async post(
+    @Arg("id", () => Int) id: number,
+    @Ctx() { req }: MyContext
+  ): Promise<Post | undefined> {
+    // return Post.findOne(id, { relations: ["creator"] });
+    //cannot get voteStatus with the above method, so redo the posts query process as below to get one post.
+    const qb = await getConnection()
+      .getRepository(Post)
+      .createQueryBuilder("post");
+
+    const _qb = qb
+      .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id")
+      .leftJoinAndSelect("post.updoots", "updoot", "updoot.postId = post.id")
+      .leftJoinAndMapOne(
+        "post.voteStatus",
+        "post.updoots",
+        "voteStatus",
+        `updoot.userId =  ${req.session.userId} and updoot.postId = post.id`
+      ) //return Updoot for voteStatus instead of updoot.value due to unsolved query issue
+      .where("post.id = :id", { id: id });
+
+    const post = await _qb.getOne();
+    return post;
   }
 
   @Mutation(() => Post)
@@ -110,12 +131,31 @@ export class PostResolver {
   }
 
   @Mutation(() => Boolean)
-  async deletePost(@Arg("id", () => Int) id: number): Promise<boolean> {
-    try {
-      await Post.delete(id);
-    } catch (error) {
-      return false;
-    }
+  @UseMiddleware(isAuth)
+  async deletePost(
+    @Arg("id", () => Int) id: number,
+    @Ctx() { req }: MyContext
+  ): Promise<boolean> {
+    //non cascade way
+    // try {
+    //   const post = await Post.findOne(id);
+    //   if (!post) {
+    //     return false;
+    //   }
+
+    //   if (post.creatorId !== req.session.userId) {
+    //     throw new Error("not authorized");
+    //   }
+
+    //   await Updoot.delete({ postId: id }); //delete updoot first to prevent violate foreign key constraint
+    //   await Post.delete({ id, creatorId: req.session.userId });
+    // } catch (error) {
+    //   return false;
+    // }
+    // return true;
+
+    //cascade way
+    await Post.delete({ id, creatorId: req.session.userId });
     return true;
   }
 
