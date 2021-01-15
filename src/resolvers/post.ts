@@ -17,6 +17,7 @@ import {
 import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
 import { Updoot } from "../entities/Updoot";
+import { User } from "../entities/User";
 
 @InputType()
 class PostInput {
@@ -41,6 +42,28 @@ export class PostResolver {
     return root.text.slice(0, 50);
   }
 
+  @FieldResolver(() => User)
+  creator(@Root() post: Post, @Ctx() { userLoader }: MyContext) {
+    return userLoader.load(post.creatorId);
+  }
+
+  @FieldResolver(() => Int, { nullable: true })
+  async voteStatus(
+    @Root() post: Post,
+    @Ctx() { updootLoader, req }: MyContext
+  ) {
+    if (!req.session.userId) {
+      return null;
+    }
+
+    const updoot = await updootLoader.load({
+      postId: post.id,
+      userId: req.session.userId,
+    });
+
+    return updoot ? updoot.value : null;
+  }
+
   @Query(() => PaginatedPosts)
   async posts(
     @Arg("limit", () => Int) limit: number,
@@ -54,7 +77,7 @@ export class PostResolver {
       .createQueryBuilder("post");
 
     const _qb = qb
-      .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id")
+      // .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id") //using data loader
       .leftJoinAndSelect("post.updoots", "updoot", "updoot.postId = post.id")
       .leftJoinAndMapOne(
         "post.voteStatus",
@@ -89,7 +112,7 @@ export class PostResolver {
       .createQueryBuilder("post");
 
     const _qb = qb
-      .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id")
+      // .leftJoinAndSelect("post.creator", "user", "post.creatorId = user.id") //using data loader
       .leftJoinAndSelect("post.updoots", "updoot", "updoot.postId = post.id")
       .leftJoinAndMapOne(
         "post.voteStatus",

@@ -16,6 +16,8 @@ import { User } from "./entities/User";
 import { Post } from "./entities/Post";
 import path from "path";
 import { Updoot } from "./entities/Updoot";
+import { createUserLoader } from "./resolvers/utils/createUserLoader";
+import { createUpdootLoader } from "./resolvers/utils/createUpdootLoader";
 
 const main = async () => {
   const conn = await createConnection({
@@ -74,6 +76,8 @@ const main = async () => {
       req,
       res,
       redisClient,
+      userLoader: createUserLoader(),
+      updootLoader: createUpdootLoader(),
     }),
   });
 
