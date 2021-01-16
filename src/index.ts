@@ -18,6 +18,7 @@ import path from "path";
 import { Updoot } from "./entities/Updoot";
 import { createUserLoader } from "./resolvers/utils/createUserLoader";
 import { createUpdootLoader } from "./resolvers/utils/createUpdootLoader";
+// import "dotenv-safe"; //for env only
 
 const main = async () => {
   const conn = await createConnection({
@@ -25,8 +26,9 @@ const main = async () => {
     database: "lireddit2",
     username: "root",
     password: "root",
+    // url:process.env.DATABASE_URL
     logging: true,
-    synchronize: true, //automatic run migration if true
+    synchronize: true, //automatic run migration if true, delete this line in production
     migrations: [path.join(__dirname, "./migrations/*")],
     entities: [Post, User, Updoot],
   });
@@ -39,6 +41,9 @@ const main = async () => {
 
   const RedisStore = connectRedis(session);
   const redisClient = new Redis();
+
+  //get cookie working in proxy environment like nginx,
+  //app.set('trust proxy',1)
 
   app.use(
     cors({
@@ -60,9 +65,10 @@ const main = async () => {
         httpOnly: true,
         sameSite: "lax", //csrf
         secure: __prod__, //cookie only works in https
+        //domain:  __prod__ ? ".example.com" : undefined,   //add if see cookie problems
       },
       saveUninitialized: false, //create a session by default
-      secret: "my secret",
+      secret: "my secret", //may add process.env.SECRET
       resave: false,
     })
   );
@@ -86,6 +92,7 @@ const main = async () => {
     cors: false,
   });
 
+  //parseInt(process.env.PORT)
   app.listen(4000, () => {
     console.log("lireddit server listening at port 4000: ");
   });
